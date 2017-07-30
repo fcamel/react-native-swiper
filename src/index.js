@@ -154,7 +154,7 @@ export default class extends Component {
    * Init states
    * @return {object} states
    */
-  state = this.initState(this.props, true)
+  state = this.initState(this.props, true, false)
 
   /**
    * autoplay timer
@@ -166,8 +166,9 @@ export default class extends Component {
   componentWillReceiveProps (nextProps) {
     const sizeChanged = (nextProps.width || width) !== this.state.width ||
                         (nextProps.height || height) !== this.state.height
+    const indexChanged = nextProps.index !== this.props.index;
     if (!nextProps.autoplay && this.autoplayTimer) clearTimeout(this.autoplayTimer)
-    this.setState(this.initState(nextProps, sizeChanged))
+    this.setState(this.initState(nextProps, sizeChanged, indexChanged))
   }
 
   componentDidMount () {
@@ -179,7 +180,7 @@ export default class extends Component {
     this.loopJumpTimer && clearTimeout(this.loopJumpTimer)
   }
 
-  initState (props, setOffsetInState) {
+  initState (props, setOffsetInState, indexChanged) {
     // set the current state
     const state = this.state || {}
 
@@ -194,7 +195,7 @@ export default class extends Component {
 
     initState.total = props.children ? props.children.length || 1 : 0
 
-    if (state.total === initState.total) {
+    if (!indexChanged && state.total === initState.total) {
       // retain the index
       initState.index = state.index
     } else {
@@ -323,7 +324,7 @@ export default class extends Component {
    * @param  {object} offset content offset
    * @param  {string} dir    'x' || 'y'
    */
-  updateIndex = (offset, dir, cb) => {
+  updateIndex = (offset, dir, onDidUpdateIndex) => {
     const state = this.state
     let index = state.index
     const diff = offset[dir] - this.internals.offset[dir]
@@ -367,15 +368,22 @@ export default class extends Component {
         newState.offset = { x: 0, y: 0 }
         newState.offset[dir] = offset[dir] + 1
         this.setState(newState, () => {
-          this.setState({ offset: offset }, cb)
+          this.setState({ offset: offset }, onDidUpdateIndex)
         })
       } else {
         newState.offset = offset
-        this.setState(newState, cb)
+        this.setState(newState, onDidUpdateIndex)
       }
     } else {
-      this.setState(newState, cb)
+      this.setState(newState, onDidUpdateIndex)
     }
+    this.props.onWillUpdateIndex && this.props.onWillUpdateIndex(newState.index);
+  }
+
+  scrollTo = (index, animated = true) => {
+    if (this.state.index == index)
+      return;
+    this.scrollBy(index - this.state.index, animated);
   }
 
   /**
